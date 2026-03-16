@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教師控制台 - 畢氏定理探究進度</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e272e; color: white; margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #485460; padding-bottom: 20px; margin-bottom: 30px; }
+        .header h1 { margin: 0; font-size: 36px; color: #0fbcf9; }
+        .stats { font-size: 24px; font-weight: bold; }
+        
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        
+        .student-card { background-color: #485460; border-radius: 10px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: transform 0.2s; }
+        .student-card.done { background-color: #05c46b; /* 完成時變成醒目綠色 */ color: white; }
+        .student-card.discovered { background-color: #ffc048; /* 發現定理時變金色 */ color: #1e272e; }
+        
+        .student-info { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 15px; }
+        .student-id { font-size: 24px; font-weight: bold; }
+        .student-name { font-size: 18px; opacity: 0.9; }
+        
+        /* 進度條設計 */
+        .progress-wrapper { background-color: rgba(0,0,0,0.2); border-radius: 8px; height: 25px; overflow: hidden; position: relative; }
+        .progress-fill { background-color: #0fbcf9; height: 100%; width: 0%; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .student-card.done .progress-fill, .student-card.discovered .progress-fill { background-color: rgba(255,255,255,0.9); }
+        .progress-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+        .student-card.done .progress-text, .student-card.discovered .progress-text { text-shadow: none; color: #1e272e; }
+        
+        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 20px; font-size: 14px; font-weight: bold; margin-top: 15px; background: rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>📊 課堂實時探究進度</h1>
+        <div class="stats">在線人數: <span id="total-students">0</span></div>
+    </div>
+
+    <div class="grid-container" id="dashboard-grid">
+        <h2 style="color: #808e9b; text-align: center; grid-column: 1 / -1;">等待學生登入中...</h2>
+    </div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+    // ⚠️ 將呢度嘅 config 換做同 discovery.html 一模一樣嗰個！
+const firebaseConfig = {
+  apiKey: "AIzaSyAjcLlsjAnUceq6BhjPCkjckIsbgR4Z0qc",
+  authDomain: "understanding-pyth.firebaseapp.com",
+  databaseURL: "https://understanding-pyth-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "understanding-pyth",
+  storageBucket: "understanding-pyth.firebasestorage.app",
+  messagingSenderId: "348135263643",
+  appId: "1:348135263643:web:7d3b2eae0ba43ebca4653e",
+  measurementId: "G-GS7QPFD0D5"
+};
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const lessonRef = ref(db, 'pythagoras_lesson/');
+
+    // 實時監聽 Firebase 數據變化
+    onValue(lessonRef, (snapshot) => {
+        const data = snapshot.val();
+        const grid = document.getElementById('dashboard-grid');
+        
+        if (!data) {
+            grid.innerHTML = '<h2 style="color: #808e9b; text-align: center; grid-column: 1 / -1;">等待學生登入中...</h2>';
+            document.getElementById('total-students').innerText = '0';
+            return;
+        }
+
+        grid.innerHTML = ''; // 清空現有卡片
+        let studentCount = 0;
+
+        // 將 Object 轉為 Array 並按學號排序
+        const students = Object.values(data).sort((a, b) => a.studentId.localeCompare(b.studentId));
+
+        students.forEach(student => {
+            studentCount++;
+            const progressPercent = (student.progress / 5) * 100;
+            
+            // 決定卡片顏色同狀態文字
+            let cardClass = 'student-card';
+            let statusText = '計算中 ✏️';
+            
+            if (student.status === 'discovered!') {
+                cardClass += ' discovered';
+                statusText = '已發現定理！🏆';
+            } else if (student.status === 'finished') {
+                cardClass += ' done';
+                statusText = '完成所有計算 ✅';
+            }
+
+            const card = document.createElement('div');
+            card.className = cardClass;
+            card.innerHTML = `
+                <div class="student-info">
+                    <span class="student-id">${student.studentId}</span>
+                    <span class="student-name">${student.studentName}</span>
+                </div>
+                <div class="progress-wrapper">
+                    <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                    <div class="progress-text">${student.progress} / 5 題</div>
+                </div>
+                <div class="status-badge">${statusText}</div>
+            `;
+            grid.appendChild(card);
+        });
+
+        document.getElementById('total-students').innerText = studentCount;
+    });
+</script>
+</body>
+</html>
