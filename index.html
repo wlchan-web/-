@@ -139,4 +139,66 @@ const firebaseConfig = {
         tr.innerHTML = `
             <td>#${i}</td>
             <td><input type="number" id="a-${i}"></td><td><input type="number" id="b-${i}"></td><td><input type="number" id="c-${i}"></td>
-            <td><input type="number" id="a2-${i}" disabled></td><td><input type="number" id="b2-${i}" disabled></td><td>
+            <td><input type="number" id="a2-${i}" disabled></td><td><input type="number" id="b2-${i}" disabled></td><td><input type="number" id="c2-${i}" disabled></td>
+            <td id="status-${i}">⏳</td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    for (let i = 1; i <= totalRows; i++) {
+        const a = document.getElementById(`a-${i}`), b = document.getElementById(`b-${i}`), c = document.getElementById(`c-${i}`);
+        const a2 = document.getElementById(`a2-${i}`), b2 = document.getElementById(`b2-${i}`), c2 = document.getElementById(`c2-${i}`);
+
+        const checkBaseInputs = () => { if (a.value && b.value && c.value) { a2.disabled = false; b2.disabled = false; c2.disabled = false; } };
+        [a, b, c].forEach(input => input.addEventListener('input', checkBaseInputs));
+
+        const verifySquares = () => {
+            let aCorrect = a2.value !== "" && Number(a2.value) === Math.pow(Number(a.value), 2);
+            let bCorrect = b2.value !== "" && Number(b2.value) === Math.pow(Number(b.value), 2);
+            let cCorrect = c2.value !== "" && Number(c2.value) === Math.pow(Number(c.value), 2);
+
+            a2.classList.toggle('correct', aCorrect); b2.classList.toggle('correct', bCorrect); c2.classList.toggle('correct', cCorrect);
+
+            const status = document.getElementById(`status-${i}`);
+            const isPythagorean = (Number(a2.value) + Number(b2.value) === Number(c2.value));
+
+            if (aCorrect && bCorrect && cCorrect) {
+                if (isPythagorean) {
+                    if (status.innerText !== "✅") {
+                        status.innerText = "✅"; document.getElementById(`row-${i}`).classList.add('row-done');
+                        completedRows++; updateFirebaseProgress(); checkOverallProgress();
+                    }
+                } else { status.innerText = "⚠️ 唔似直角三角形"; }
+            } else {
+                if (status.innerText === "✅") {
+                    status.innerText = "⏳"; document.getElementById(`row-${i}`).classList.remove('row-done');
+                    completedRows--; updateFirebaseProgress();
+                }
+            }
+        };
+        [a2, b2, c2].forEach(input => input.addEventListener('input', verifySquares));
+    }
+
+    function updateFirebaseProgress() {
+        if(!dbKey) return;
+        update(ref(db, 'pythagoras_lesson/' + dbKey), {
+            progress: completedRows,
+            status: completedRows === 5 ? "finished" : "working"
+        });
+    }
+
+    function checkOverallProgress() {
+        if (completedRows === totalRows) {
+            document.getElementById('discovery-section').style.display = 'block';
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+    }
+
+    document.getElementById('reveal-btn').addEventListener('click', function() {
+        this.style.display = 'none';
+        document.getElementById('theorem-display').style.display = 'block';
+        update(ref(db, 'pythagoras_lesson/' + dbKey), { status: "discovered!" });
+    });
+</script>
+</body>
+</html>
