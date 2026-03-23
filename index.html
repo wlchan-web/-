@@ -179,11 +179,37 @@ const firebaseConfig = {
         [a2, b2, c2].forEach(input => input.addEventListener('input', verifySquares));
     }
 
-    function updateFirebaseProgress() {
+   function updateFirebaseProgress() {
         if(!dbKey) return;
+        
+        let correctRows = 0;
+        let stuckRows = 0;
+        let emptyRows = 0;
+
+        for (let i = 1; i <= totalRows; i++) {
+            const statusText = document.getElementById(`status-${i}`).innerText;
+            const a2 = document.getElementById(`a2-${i}`).value;
+            const b2 = document.getElementById(`b2-${i}`).value;
+            const c2 = document.getElementById(`c2-${i}`).value;
+
+            if (statusText === "✅") {
+                correctRows++;
+            } else if (statusText.includes("⚠️") || a2 !== "" || b2 !== "" || c2 !== "") {
+                // 如果彈咗警告，或者學生已經開始填緊平方但未變綠色，當作「卡關/計算中」
+                stuckRows++;
+            } else {
+                // 乜都未填
+                emptyRows++;
+            }
+        }
+
+        // 將更詳細嘅數據寫入 Firebase
         update(ref(db, 'pythagoras_lesson/' + dbKey), {
-            progress: completedRows,
-            status: completedRows === 5 ? "finished" : "working"
+            progress: correctRows, // 兼容舊版
+            correctCount: correctRows,
+            stuckCount: stuckRows,
+            emptyCount: emptyRows,
+            status: correctRows === 5 ? "finished" : "working"
         });
     }
 
