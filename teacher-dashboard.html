@@ -62,7 +62,7 @@ const firebaseConfig = {
     const lessonRef = ref(db, 'pythagoras_lesson/');
 
     // 實時監聽 Firebase 數據變化
-    onValue(lessonRef, (snapshot) => {
+onValue(lessonRef, (snapshot) => {
         const data = snapshot.val();
         const grid = document.getElementById('dashboard-grid');
         
@@ -72,17 +72,19 @@ const firebaseConfig = {
             return;
         }
 
-        grid.innerHTML = ''; // 清空現有卡片
+        grid.innerHTML = ''; 
         let studentCount = 0;
 
-        // 將 Object 轉為 Array 並按學號排序
         const students = Object.values(data).sort((a, b) => a.studentId.localeCompare(b.studentId));
 
         students.forEach(student => {
             studentCount++;
-            const progressPercent = (student.progress / 5) * 100;
             
-            // 決定卡片顏色同狀態文字
+            // 讀取新數據，如果無就預設為 0
+            const correct = student.correctCount || 0;
+            const stuck = student.stuckCount || 0;
+            const empty = student.emptyCount || (5 - correct - stuck);
+            
             let cardClass = 'student-card';
             let statusText = '計算中 ✏️';
             
@@ -92,7 +94,16 @@ const firebaseConfig = {
             } else if (student.status === 'finished') {
                 cardClass += ' done';
                 statusText = '完成所有計算 ✅';
+            } else if (stuck > 0) {
+                // 如果有卡關嘅題目，狀態轉為提示
+                statusText = `卡關中 👀 (需要幫手?)`;
             }
+
+            // 生成顏色方格 🟩🟥⬜
+            let visualBlocks = '';
+            for(let i=0; i<correct; i++) visualBlocks += '🟩 ';
+            for(let i=0; i<stuck; i++) visualBlocks += '🟥 ';
+            for(let i=0; i<empty; i++) visualBlocks += '⬜ ';
 
             const card = document.createElement('div');
             card.className = cardClass;
@@ -101,11 +112,17 @@ const firebaseConfig = {
                     <span class="student-id">${student.studentId}</span>
                     <span class="student-name">${student.studentName}</span>
                 </div>
-                <div class="progress-wrapper">
-                    <div class="progress-fill" style="width: ${progressPercent}%"></div>
-                    <div class="progress-text">${student.progress} / 5 題</div>
+                
+                <div style="font-size: 20px; letter-spacing: 2px; margin-bottom: 10px; text-align: center;">
+                    ${visualBlocks}
                 </div>
-                <div class="status-badge">${statusText}</div>
+                <div style="font-size: 14px; text-align: center; margin-bottom: 15px; opacity: 0.9;">
+                    <span style="color: #05c46b; font-weight: bold;">${correct} 啱</span> | 
+                    <span style="color: #ff4757; font-weight: bold;">${stuck} 卡關</span> | 
+                    <span style="color: #d1d8e0;">${empty} 未做</span>
+                </div>
+                
+                <div class="status-badge" style="${stuck > 0 && student.status !== 'finished' ? 'background: #ff4757; color: white;' : ''}">${statusText}</div>
             `;
             grid.appendChild(card);
         });
