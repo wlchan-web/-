@@ -27,7 +27,7 @@
         #reveal-btn:hover { background-color: #34495e; transform: scale(1.05); }
         #theorem-display { display: none; margin-top: 30px; font-size: 48px; font-weight: bold; color: var(--success); padding: 30px; border: 4px dashed var(--success); border-radius: 12px; background: white; animation: popIn 0.6s; }
         
-        /* 更新登入介面 */
+        /* 登入介面 */
         #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(44, 62, 80, 0.95); z-index: 1000; display: flex; justify-content: center; align-items: center; }
         .login-box { background: white; padding: 40px; border-radius: 12px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-width: 400px; width: 90%; }
         .login-box h2 { margin-top: 0; color: var(--primary); margin-bottom: 20px;}
@@ -87,17 +87,17 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
     import { getDatabase, ref, set, update } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-    // ⚠️ 記得將下面嘅 config 換做你自己 Firebase 嘅設定！
-const firebaseConfig = {
-  apiKey: "AIzaSyAjcLlsjAnUceq6BhjPCkjckIsbgR4Z0qc",
-  authDomain: "understanding-pyth.firebaseapp.com",
-  databaseURL: "https://understanding-pyth-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "understanding-pyth",
-  storageBucket: "understanding-pyth.firebasestorage.app",
-  messagingSenderId: "348135263643",
-  appId: "1:348135263643:web:7d3b2eae0ba43ebca4653e",
-  measurementId: "G-GS7QPFD0D5"
-};
+    // Firebase 設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyAjcLlsjAnUceq6BhjPCkjckIsbgR4Z0qc",
+      authDomain: "understanding-pyth.firebaseapp.com",
+      databaseURL: "https://understanding-pyth-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "understanding-pyth",
+      storageBucket: "understanding-pyth.firebasestorage.app",
+      messagingSenderId: "348135263643",
+      appId: "1:348135263643:web:7d3b2eae0ba43ebca4653e",
+      measurementId: "G-GS7QPFD0D5"
+    };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
@@ -122,18 +122,17 @@ const firebaseConfig = {
         document.getElementById('login-overlay').style.display = 'none';
         document.getElementById('main-content').style.display = 'flex';
 
-        // 寫入 Firebase
+        // 寫入 Firebase 初始化數據
         set(ref(db, 'pythagoras_lesson/' + dbKey), {
             studentId: idVal,
             studentName: nameVal,
             progress: 0,
+            correctCount: 0,
+            stuckCount: 0,
+            emptyCount: 5,
             status: "working"
         });
     });
-
-    // 表格生成與驗證邏輯
-   // 搵返呢行：const tbody = document.querySelector('#data-table tbody');
-    // 然後將下面成個 for loop 替換做呢段：
 
     // 表格生成與驗證邏輯
     const tbody = document.querySelector('#data-table tbody');
@@ -141,11 +140,11 @@ const firebaseConfig = {
     // 預先設定好 5 個三角形嘅 a 值
     const aValues = [3, 5, 8, 7, 20]; 
 
-    // 將生成表格同埋綁定 Event Listener 合併喺同一個 Loop 裡面做
     for (let i = 1; i <= totalRows; i++) {
         const tr = document.createElement('tr');
         tr.id = `row-${i}`;
         
+        // a 鎖死 (disabled) 並加入灰色背景，代表唔洗填
         tr.innerHTML = `
             <td>#${i}</td>
             <td><input type="number" id="a-${i}" value="${aValues[i-1]}" disabled style="background-color: #e9ecef; font-weight: bold; border-color: #bdc3c7; color: #7f8c8d;"></td>
@@ -159,13 +158,16 @@ const firebaseConfig = {
         tbody.appendChild(tr);
 
         // 綁定 DOM 元素
-        const a = document.getElementById(`a-${i}`), b = document.getElementById(`b-${i}`), c = document.getElementById(`c-${i}`);
-        const a2 = document.getElementById(`a2-${i}`), b2 = document.getElementById(`b2-${i}`), c2 = document.getElementById(`c2-${i}`);
+        const a = document.getElementById(`a-${i}`);
+        const b = document.getElementById(`b-${i}`);
+        const c = document.getElementById(`c-${i}`);
+        const a2 = document.getElementById(`a2-${i}`);
+        const b2 = document.getElementById(`b2-${i}`);
+        const c2 = document.getElementById(`c2-${i}`);
         const status = document.getElementById(`status-${i}`);
 
-        // 檢查 b 同 c 是否已填寫，如果填好就解鎖 a2, b2, c2
+        // 檢查 b 同 c 有冇填嘢，有填就解鎖 a2, b2, c2
         const checkBaseInputs = () => { 
-            // 因為 a 已經預設填好咗，所以我哋只需檢查 b 同 c
             if (b.value !== "" && c.value !== "") { 
                 a2.disabled = false; 
                 b2.disabled = false; 
@@ -176,10 +178,9 @@ const firebaseConfig = {
                 c2.disabled = true; 
             }
         };
-        // 綁定檢查解鎖事件畀 b 同 c
         [b, c].forEach(input => input.addEventListener('input', checkBaseInputs));
 
-        // 驗證平方計算結果
+        // 驗證 a2, b2, c2 嘅數學計算邏輯
         const verifySquares = () => {
             let aCorrect = a2.value !== "" && Number(a2.value) === Math.pow(Number(a.value), 2);
             let bCorrect = b2.value !== "" && Number(b2.value) === Math.pow(Number(b.value), 2);
@@ -202,7 +203,6 @@ const firebaseConfig = {
                     }
                 } else { 
                     status.innerText = "⚠️ 唔似直角三角形"; 
-                    // 如果計錯咗，都需要更新 Dashboard 話俾老師知卡關中
                     updateFirebaseProgress(); 
                 }
             } else {
@@ -211,14 +211,17 @@ const firebaseConfig = {
                     document.getElementById(`row-${i}`).classList.remove('row-done');
                     completedRows--; 
                 } else if (a2.value !== "" || b2.value !== "" || c2.value !== "") {
-                     status.innerText = "⏳";
+                    // 如果有入資料但未全對，都當計算中處理
+                    status.innerText = "⏳";
                 }
                 updateFirebaseProgress();
             }
         };
-        // 綁定驗證事件畀 a2, b2, c2
         [a2, b2, c2].forEach(input => input.addEventListener('input', verifySquares));
     }
+
+    // 更新 Firebase 數據 (用作 Teacher Dashboard 顯示 🟩🟥⬜)
+    function updateFirebaseProgress() {
         if(!dbKey) return;
         
         let correctRows = 0;
@@ -234,17 +237,14 @@ const firebaseConfig = {
             if (statusText === "✅") {
                 correctRows++;
             } else if (statusText.includes("⚠️") || a2 !== "" || b2 !== "" || c2 !== "") {
-                // 如果彈咗警告，或者學生已經開始填緊平方但未變綠色，當作「卡關/計算中」
-                stuckRows++;
+                stuckRows++; // 卡關中
             } else {
-                // 乜都未填
-                emptyRows++;
+                emptyRows++; // 未開始計
             }
         }
 
-        // 將更詳細嘅數據寫入 Firebase
         update(ref(db, 'pythagoras_lesson/' + dbKey), {
-            progress: correctRows, // 兼容舊版
+            progress: correctRows, // 兼容舊版進度條
             correctCount: correctRows,
             stuckCount: stuckRows,
             emptyCount: emptyRows,
@@ -252,6 +252,7 @@ const firebaseConfig = {
         });
     }
 
+    // 檢查全班進度是否完成
     function checkOverallProgress() {
         if (completedRows === totalRows) {
             document.getElementById('discovery-section').style.display = 'block';
@@ -259,6 +260,7 @@ const firebaseConfig = {
         }
     }
 
+    // 揭曉規律按鈕
     document.getElementById('reveal-btn').addEventListener('click', function() {
         this.style.display = 'none';
         document.getElementById('theorem-display').style.display = 'block';
