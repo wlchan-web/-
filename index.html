@@ -132,14 +132,27 @@ const firebaseConfig = {
     });
 
     // 表格生成與驗證邏輯
+   // 搵返呢行：const tbody = document.querySelector('#data-table tbody');
+    // 然後將下面成個 for loop 替換做呢段：
+
     const tbody = document.querySelector('#data-table tbody');
+    
+    // 預先設定好 5 個三角形嘅 a 值 (對應你張圖嘅 5 組數據)
+    const aValues = [3, 5, 8, 7, 20]; 
+
     for (let i = 1; i <= totalRows; i++) {
         const tr = document.createElement('tr');
         tr.id = `row-${i}`;
+        
+        // 注意 a 嘅 input 加咗 value 同 disabled，仲加咗少少灰底 style 等學生知唔洗填
         tr.innerHTML = `
             <td>#${i}</td>
-            <td><input type="number" id="a-${i}"></td><td><input type="number" id="b-${i}"></td><td><input type="number" id="c-${i}"></td>
-            <td><input type="number" id="a2-${i}" disabled></td><td><input type="number" id="b2-${i}" disabled></td><td><input type="number" id="c2-${i}" disabled></td>
+            <td><input type="number" id="a-${i}" value="${aValues[i-1]}" disabled style="background-color: #e9ecef; font-weight: bold; border-color: #bdc3c7; color: #7f8c8d;"></td>
+            <td><input type="number" id="b-${i}"></td>
+            <td><input type="number" id="c-${i}"></td>
+            <td><input type="number" id="a2-${i}" disabled></td>
+            <td><input type="number" id="b2-${i}" disabled></td>
+            <td><input type="number" id="c2-${i}" disabled></td>
             <td id="status-${i}">⏳</td>
         `;
         tbody.appendChild(tr);
