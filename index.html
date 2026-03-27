@@ -135,16 +135,17 @@ const firebaseConfig = {
    // 搵返呢行：const tbody = document.querySelector('#data-table tbody');
     // 然後將下面成個 for loop 替換做呢段：
 
+    // 表格生成與驗證邏輯
     const tbody = document.querySelector('#data-table tbody');
     
-    // 預先設定好 5 個三角形嘅 a 值 (對應你張圖嘅 5 組數據)
+    // 預先設定好 5 個三角形嘅 a 值
     const aValues = [3, 5, 8, 7, 20]; 
 
+    // 將生成表格同埋綁定 Event Listener 合併喺同一個 Loop 裡面做
     for (let i = 1; i <= totalRows; i++) {
         const tr = document.createElement('tr');
         tr.id = `row-${i}`;
         
-        // 注意 a 嘅 input 加咗 value 同 disabled，仲加咗少少灰底 style 等學生知唔洗填
         tr.innerHTML = `
             <td>#${i}</td>
             <td><input type="number" id="a-${i}" value="${aValues[i-1]}" disabled style="background-color: #e9ecef; font-weight: bold; border-color: #bdc3c7; color: #7f8c8d;"></td>
@@ -156,43 +157,68 @@ const firebaseConfig = {
             <td id="status-${i}">⏳</td>
         `;
         tbody.appendChild(tr);
-    }
 
-    for (let i = 1; i <= totalRows; i++) {
+        // 綁定 DOM 元素
         const a = document.getElementById(`a-${i}`), b = document.getElementById(`b-${i}`), c = document.getElementById(`c-${i}`);
         const a2 = document.getElementById(`a2-${i}`), b2 = document.getElementById(`b2-${i}`), c2 = document.getElementById(`c2-${i}`);
+        const status = document.getElementById(`status-${i}`);
 
-        const checkBaseInputs = () => { if (a.value && b.value && c.value) { a2.disabled = false; b2.disabled = false; c2.disabled = false; } };
-        [a, b, c].forEach(input => input.addEventListener('input', checkBaseInputs));
+        // 檢查 b 同 c 是否已填寫，如果填好就解鎖 a2, b2, c2
+        const checkBaseInputs = () => { 
+            // 因為 a 已經預設填好咗，所以我哋只需檢查 b 同 c
+            if (b.value !== "" && c.value !== "") { 
+                a2.disabled = false; 
+                b2.disabled = false; 
+                c2.disabled = false; 
+            } else {
+                a2.disabled = true; 
+                b2.disabled = true; 
+                c2.disabled = true; 
+            }
+        };
+        // 綁定檢查解鎖事件畀 b 同 c
+        [b, c].forEach(input => input.addEventListener('input', checkBaseInputs));
 
+        // 驗證平方計算結果
         const verifySquares = () => {
             let aCorrect = a2.value !== "" && Number(a2.value) === Math.pow(Number(a.value), 2);
             let bCorrect = b2.value !== "" && Number(b2.value) === Math.pow(Number(b.value), 2);
             let cCorrect = c2.value !== "" && Number(c2.value) === Math.pow(Number(c.value), 2);
 
-            a2.classList.toggle('correct', aCorrect); b2.classList.toggle('correct', bCorrect); c2.classList.toggle('correct', cCorrect);
+            a2.classList.toggle('correct', aCorrect); 
+            b2.classList.toggle('correct', bCorrect); 
+            c2.classList.toggle('correct', cCorrect);
 
-            const status = document.getElementById(`status-${i}`);
             const isPythagorean = (Number(a2.value) + Number(b2.value) === Number(c2.value));
 
             if (aCorrect && bCorrect && cCorrect) {
                 if (isPythagorean) {
                     if (status.innerText !== "✅") {
-                        status.innerText = "✅"; document.getElementById(`row-${i}`).classList.add('row-done');
-                        completedRows++; updateFirebaseProgress(); checkOverallProgress();
+                        status.innerText = "✅"; 
+                        document.getElementById(`row-${i}`).classList.add('row-done');
+                        completedRows++; 
+                        updateFirebaseProgress(); 
+                        checkOverallProgress();
                     }
-                } else { status.innerText = "⚠️ 唔似直角三角形"; }
+                } else { 
+                    status.innerText = "⚠️ 唔似直角三角形"; 
+                    // 如果計錯咗，都需要更新 Dashboard 話俾老師知卡關中
+                    updateFirebaseProgress(); 
+                }
             } else {
                 if (status.innerText === "✅") {
-                    status.innerText = "⏳"; document.getElementById(`row-${i}`).classList.remove('row-done');
-                    completedRows--; updateFirebaseProgress();
+                    status.innerText = "⏳"; 
+                    document.getElementById(`row-${i}`).classList.remove('row-done');
+                    completedRows--; 
+                } else if (a2.value !== "" || b2.value !== "" || c2.value !== "") {
+                     status.innerText = "⏳";
                 }
+                updateFirebaseProgress();
             }
         };
+        // 綁定驗證事件畀 a2, b2, c2
         [a2, b2, c2].forEach(input => input.addEventListener('input', verifySquares));
     }
-
-   function updateFirebaseProgress() {
         if(!dbKey) return;
         
         let correctRows = 0;
